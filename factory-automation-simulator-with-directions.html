@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Factory Automation Simulator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        header {
+            background-color: #333;
+            color: white;
+            padding: 15px;
+            text-align: center;
+        }
+        .controls {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            background-color: #eee;
+            padding: 15px;
+            border-radius: 5px;
+        }
+        .stats {
+            background-color: #ddd;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+        }
+        .stat-card {
+            background-color: white;
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .factory-grid {
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .cell {
+            background-color: #f9f9f9;
+            aspect-ratio: 1/1;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+        .cell:hover {
+            background-color: #e9e9e9;
+        }
+        .module {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            position: relative;
+        }
+        .direction-indicator {
+            position: absolute;
+            width: 0;
+            height: 0;
+            border-style: solid;
+        }
+        .direction-north .direction-indicator {
+            bottom: 75%;
+            left: 50%;
+            transform: translateX(-50%);
+            border-width: 0 8px 12px 8px;
+            border-color: transparent transparent white transparent;
+        }
+        .direction-east .direction-indicator {
+            top: 50%;
+            left: 75%;
+            transform: translateY(-50%);
+            border-width: 8px 0 8px 12px;
+            border-color: transparent transparent transparent white;
+        }
+        .direction-south .direction-indicator {
+            top: 75%;
+            left: 50%;
+            transform: translateX(-50%);
+            border-width: 12px 8px 0 8px;
+            border-color: white transparent transparent transparent;
+        }
+        .direction-west .direction-indicator {
+            top: 50%;
+            right: 75%;
+            transform: translateY(-50%);
+            border-width: 8px 12px 8px 0;
+            border-color: transparent white transparent transparent;
+        }
+        .robot {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background-color: #f00;
+            border-radius: 50%;
+            z-index: 10;
+        }
+        .object {
+            position: absolute;
+            width: 15px;
+            height: 15px;
+            background-color: #ffcc00;
+            z-index: 5;
+        }
+        .module-assembler { background-color: #3498db; }
+        .module-storage { background-color: #8e44ad; }
+        .module-processor { background-color: #e74c3c; }
+        .module-transporter { background-color: #2ecc71; }
+        .module-conveyor { background-color: #f39c12; }
+        
+        .module-selector {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .module-option {
+            padding: 10px;
+            border-radius: 5px;
+            color: white;
+            cursor: pointer;
+        }
+        .module-option:hover {
+            opacity: 0.9;
+        }
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        button {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 5px;
+            background-color: #3498db;
+            color: white;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        .speed-control {
+            display: flex;
+            align-items: center;
+        }
+        #chart-container {
+            height: 200px;
+            margin-top: 20px;
+            background-color: white;
+            border-radius: 5px;
+            padding: 10px;
+        }
+        .tooltip {
+            position: absolute;
+            background-color: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 3px;
+            font-size: 12px;
+            z-index: 100;
+            pointer-events: none;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Factory Automation Simulator</h1>
+    </header>
+    <div class="container">
+        <div class="controls">
+            <div>
+                <button id="start-btn">Start Simulation</button>
+                <button id="stop-btn">Stop Simulation</button>
+                <button id="reset-btn">Reset Simulation</button>
+            </div>
+            <div class="speed-control">
+                <label for="speed">Speed: </label>
+                <input type="range" id="speed" min="1" max="10" value="5">
+                <span id="speed-value">5x</span>
+            </div>
+        </div>
+        
+        <div class="stats">
+            <h2>Statistics</h2>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <h3>Total Modules</h3>
+                    <p id="total-modules">0</p>
+                </div>
+                <div class="stat-card">
+                    <h3>Active Robots</h3>
+                    <p id="active-robots">0</p>
+                </div>
+                <div class="stat-card">
+                    <h3>Objects Processed</h3>
+                    <p id="objects-processed">0</p>
+                </div>
+                <div class="stat-card">
+                    <h3>Efficiency</h3>
+                    <p id="efficiency">0%</p>
+                </div>
+            </div>
+            <div id="chart-container"></div>
+        </div>
+        
+        <div class="module-selector">
+            <div class="module-option module-assembler" data-type="assembler">Assembler</div>
+            <div class="module-option module-storage" data-type="storage">Storage</div>
+            <div class="module-option module-processor" data-type="processor">Processor</div>
+            <div class="module-option module-transporter" data-type="transporter">Transporter</div>
+            <div class="module-option module-conveyor" data-type="conveyor">Conveyor (Directional)</div>
+        </div>
+        
+        <div class="action-buttons">
+            <button id="delete-btn">Delete Module</button>
+            <button id="rotate-btn">Rotate Module</button>
+        </div>
+        
+        <div class="factory-grid" id="factory-grid">
+            <!-- Grid cells will be generated by JavaScript -->
+        </div>
+        
+        <div class="tooltip" id="tooltip"></div>
+    </div>
+
+    <script>
+        // Factory configuration
+        const config = {
+            gridSize: 8,
+            simulationSpeed: 5,
+            maxRobots: 10,
+            maxObjects: 20,
+            running: false
+        };
+
+        // Statistics
+        const stats = {
+            totalModules: 0,
+            activeRobots: 0,
+            objectsProcessed: 0,
+            efficiency: 0,
+            history: []
+        };
+
+        // Factory state
+        let selectedModuleType = null;
+        let deleteMode = false;
+        let rotateMode = false;
+        let modules = [];
+        let robots = [];
+        let objects = [];
+        let simulationInterval = null;
+        let simulationTick = 0;
+        const directions = ['north', 'east', 'south', 'west'];
+
+        // Initialize the grid
+        function initializeGrid() {
+            const grid = document.getElementById('factory-grid');
+            grid.innerHTML = '';
+            
+            for (let i = 0; i < config.gridSize * config.gridSize; i++) {
+                const cell = document.createElement('div');
+                cell.className = 'cell';
+                cell.dataset.index = i;
+                cell.addEventListener('click', handleCellClick);
+                cell.addEventListener('mouseover', handleCellHover);
+                cell.addEventListener('mouseout', handleCellHoverOut);
+                grid.appendChild(cell);
+            }
+        }
+
+        // Handle cell hover
+        function handleCellHover(e) {
+            const index = parseInt(e.currentTarget.dataset.index);
+            const row = Math.floor(index / config.gridSize);
+            const col = index % config.gridSize;
+            
+            const module = modules.find(m => m.row === row && m.col === col);
+            if (module) {
+                const tooltip = document.getElementById('tooltip');
+                tooltip.style.display = 'block';
+                tooltip.style.left = `${e.clientX + 10}px`;
+                tooltip.style.top = `${e.clientY + 10}px`;
+                
+                const directionText = module.hasOwnProperty('direction') ? 
+                    `Direction: ${module.direction}` : '';
+                
+                tooltip.innerHTML = `
+                    <strong>Type:</strong> ${module.type}<br>
+                    <strong>Efficiency:</strong> ${Math.round(module.efficiency)}%<br>
+                    ${directionText}
+                `;
+            }
+        }
+
+        // Handle cell hover out
+        function handleCellHoverOut(e) {
+            const tooltip = document.getElementById('tooltip');
+            tooltip.style.display = 'none';
+        }
+
+        // Handle cell click
+        function handleCellClick(e) {
+            const index = parseInt(e.currentTarget.dataset.index);
+            const row = Math.floor(index / config.gridSize);
+            const col = index % config.gridSize;
+            
+            if (deleteMode) {
+                // Delete module if exists
+                const moduleIndex = modules.findIndex(m => m.row === row && m.col === col);
+                if (moduleIndex !== -1) {
+                    modules.splice(moduleIndex, 1);
+                    updateStats();
+                    renderFactory();
+                }
+            } else if (rotateMode) {
+                // Rotate module if exists and is directional
+                const module = modules.find(m => m.row === row && m.col === col);
+                if (module && (module.type === 'conveyor')) {
+                    const currentDirectionIndex = directions.indexOf(module.direction || 'north');
+                    const newDirectionIndex = (currentDirectionIndex + 1) % directions.length;
+                    module.direction = directions[newDirectionIndex];
+                    renderFactory();
+                }
+            } else if (selectedModuleType) {
+                // Check if cell is already occupied
+                const existingModule = modules.find(m => m.row === row && m.col === col);
+                if (!existingModule) {
+                    const newModule = {
+                        type: selectedModuleType,
+                        row,
+                        col,
+                        efficiency: Math.random() * 50 + 50, // 50-100% efficiency
+                        objects: []
+                    };
+                    
+                    // Add direction property for directional modules
+                    if (selectedModuleType === 'conveyor') {
+                        newModule.direction = 'north'; // Default direction
+                    }
+                    
+                    modules.push(newModule);
+                    updateStats();
+                    renderFactory();
+                }
+            }
+        }
+
+        // Render the factory state
+        function renderFactory() {
+            const cells = document.querySelectorAll('.cell');
+            
+            // Clear all cells
+            cells.forEach(cell => {
+                cell.innerHTML = '';
+            });
+            
+            // Render modules
+            modules.forEach(module => {
+                const index = module.row * config.gridSize + module.col;
+                const cell = cells[index];
+                
+                const moduleElement = document.createElement('div');
+                moduleElement.className = `module module-${module.type}`;
+                
+                // Add direction class if module has direction
+                if (module.hasOwnProperty('direction')) {
+                    moduleElement.classList.add(`direction-${module.direction}`);
+                    
+                    // Add direction indicator
+                    const directionIndicator = document.createElement('div');
+                    directionIndicator.className = 'direction-indicator';
+                    moduleElement.appendChild(directionIndicator);
+                }
+                
+                moduleElement.textContent = module.type.charAt(0).toUpperCase();
+                cell.appendChild(moduleElement);
+            });
+            
+            // Render robots
+            robots.forEach(robot => {
+                const index = robot.row * config.gridSize + robot.col;
+                const cell = cells[index];
+                
+                const robotElement = document.createElement('div');
+                robotElement.className = 'robot';
+                robotElement.style.left = `${robot.offsetX}%`;
+                robotElement.style.top = `${robot.offsetY}%`;
+                cell.appendChild(robotElement);
+            });
+            
+            // Render objects
+            objects.forEach(object => {
+                const index = object.row * config.gridSize + object.col;
+                const cell = cells[index];
+                
+                const objectElement = document.createElement('div');
+                objectElement.className = 'object';
+                objectElement.style.left = `${object.offsetX}%`;
+                objectElement.style.top = `${object.offsetY}%`;
+                cell.appendChild(objectElement);
+            });
+        }
+
+        // Update statistics
+        function updateStats() {
+            stats.totalModules = modules.length;
+            stats.activeRobots = robots.length;
+            
+            // Update DOM
+            document.getElementById('total-modules').textContent = stats.totalModules;
+            document.getElementById('active-robots').textContent = stats.activeRobots;
+            document.getElementById('objects-processed').textContent = stats.objectsProcessed;
+            document.getElementById('efficiency').textContent = `${Math.round(stats.efficiency)}%`;
+            
+            // Add to history for chart
+            if (simulationTick % 10 === 0) {
+                stats.history.push({
+                    tick: simulationTick,
+                    modules: stats.totalModules,
+                    robots: stats.activeRobots,
+                    processed: stats.objectsProcessed,
+                    efficiency: stats.efficiency
+                });
+                
+                if (stats.history.length > 20) {
+                    stats.history.shift();
+                }
+                
+                updateChart();
+            }
+        }
+
+        // Update chart
+        function updateChart() {
+            const chartContainer = document.getElementById('chart-container');
+            const width = chartContainer.clientWidth;
+            const height = chartContainer.clientHeight;
+            
+            if (stats.history.length < 2) return;
+            
+            let chartHTML = `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">`;
+            
+            // Draw efficiency line
+            const efficiencyPoints = stats.history.map((point, index) => {
+                const x = (index / (stats.history.length - 1)) * width;
+                const y = height - (point.efficiency / 100) * height;
+                return `${x},${y}`;
+            });
+            
+            chartHTML += `<polyline points="${efficiencyPoints.join(' ')}" style="fill:none;stroke:#3498db;stroke-width:2" />`;
+            
+            // Draw objects processed line
+            const maxProcessed = Math.max(...stats.history.map(h => h.processed));
+            const processedPoints = stats.history.map((point, index) => {
+                const x = (index / (stats.history.length - 1)) * width;
+                const y = maxProcessed ? height - (point.processed / maxProcessed) * height * 0.8 : height;
+                return `${x},${y}`;
+            });
+            
+            chartHTML += `<polyline points="${processedPoints.join(' ')}" style="fill:none;stroke:#e74c3c;stroke-width:2" />`;
+            
+            chartHTML += '</svg>';
+            chartContainer.innerHTML = chartHTML;
+        }
+
+        // Get next position based on conveyor direction
+        function getNextPosition(row, col, direction) {
+            switch (direction) {
+                case 'north':
+                    return { row: row - 1, col: col };
+                case 'east':
+                    return { row: row, col: col + 1 };
+                case 'south':
+                    return { row: row + 1, col: col };
+                case 'west':
+                    return { row: row, col: col - 1 };
+                default:
+                    return { row, col };
+            }
+        }
+
+        // Check if position is valid
+        function isValidPosition(row, col) {
+            return row >= 0 && row < config.gridSize && col >= 0 && col < config.gridSize;
+        }
+
+        // Simulation logic
+        function runSimulation() {
+            simulationTick++;
+            
+            // Spawn new objects at storage modules
+            if (Math.random() < 0.2) {
+                const storageModules = modules.filter(m => m.type === 'storage');
+                if (storageModules.length > 0 && objects.length < config.maxObjects) {
+                    const randomStorage = storageModules[Math.floor(Math.random() * storageModules.length)];
+                    objects.push({
+                        row: randomStorage.row,
+                        col: randomStorage.col,
+                        offsetX: Math.random() * 60 + 20,
+                        offsetY: Math.random() * 60 + 20,
+                        processed: false
+                    });
+                }
+            }
+            
+            // Spawn robots at transporter modules
+            if (Math.random() < 0.1) {
+                const transporterModules = modules.filter(m => m.type === 'transporter');
+                if (transporterModules.length > 0 && robots.length < config.maxRobots) {
+                    const randomTransporter = transporterModules[Math.floor(Math.random() * transporterModules.length)];
+                    robots.push({
+                        row: randomTransporter.row,
+                        col: randomTransporter.col,
+                        offsetX: Math.random() * 60 + 20,
+                        offsetY: Math.random() * 60 + 20,
+                        target: null
+                    });
+                }
+            }
+            
+            // Process conveyor belts - move objects in the direction of the conveyor
+            objects.forEach(object => {
+                const conveyor = modules.find(m => 
+                    m.type === 'conveyor' && m.row === object.row && m.col === object.col
+                );
+                
+                if (conveyor && conveyor.direction) {
+                    const directionSpeed = 3; // Speed of movement on conveyor
+                    
+                    switch (conveyor.direction) {
+                        case 'north':
+                            object.offsetY -= directionSpeed;
+                            if (object.offsetY < 10) {
+                                // Move to next cell if possible
+                                const nextPos = getNextPosition(object.row, object.col, conveyor.direction);
+                                if (isValidPosition(nextPos.row, nextPos.col)) {
+                                    object.row = nextPos.row;
+                                    object.offsetY = 90;
+                                } else {
+                                    object.offsetY = 10; // Stop at edge
+                                }
+                            }
+                            break;
+                        case 'east':
+                            object.offsetX += directionSpeed;
+                            if (object.offsetX > 90) {
+                                // Move to next cell if possible
+                                const nextPos = getNextPosition(object.row, object.col, conveyor.direction);
+                                if (isValidPosition(nextPos.row, nextPos.col)) {
+                                    object.col = nextPos.col;
+                                    object.offsetX = 10;
+                                } else {
+                                    object.offsetX = 90; // Stop at edge
+                                }
+                            }
+                            break;
+                        case 'south':
+                            object.offsetY += directionSpeed;
+                            if (object.offsetY > 90) {
+                                // Move to next cell if possible
+                                const nextPos = getNextPosition(object.row, object.col, conveyor.direction);
+                                if (isValidPosition(nextPos.row, nextPos.col)) {
+                                    object.row = nextPos.row;
+                                    object.offsetY = 10;
+                                } else {
+                                    object.offsetY = 90; // Stop at edge
+                                }
+                            }
+                            break;
+                        case 'west':
+                            object.offsetX -= directionSpeed;
+                            if (object.offsetX < 10) {
+                                // Move to next cell if possible
+                                const nextPos = getNextPosition(object.row, object.col, conveyor.direction);
+                                if (isValidPosition(nextPos.row, nextPos.col)) {
+                                    object.col = nextPos.col;
+                                    object.offsetX = 90;
+                                } else {
+                                    object.offsetX = 10; // Stop at edge
+                                }
+                            }
+                            break;
+                    }
+                }
+            });
+            
+            // Move robots toward objects
+            robots.forEach(robot => {
+                // Find a target if the robot doesn't have one
+                if (!robot.target) {
+                    const availableObjects = objects.filter(o => !o.processed);
+                    if (availableObjects.length > 0) {
+                        const randomObject = availableObjects[Math.floor(Math.random() * availableObjects.length)];
+                        robot.target = randomObject;
+                    }
+                }
+                
+                // Move toward target
+                if (robot.target) {
+                    // Robot is in same cell as target
+                    if (robot.row === robot.target.row && robot.col === robot.target.col) {
+                        const dx = robot.target.offsetX - robot.offsetX;
+                        const dy = robot.target.offsetY - robot.offsetY;
+                        const distance = Math.sqrt(dx * dx + dy * dy);
+                        
+                        if (distance < 10) {
+                            // Robot reached the object
+                            const targetIndex = objects.indexOf(robot.target);
+                            if (targetIndex !== -1) {
+                                robot.target.processed = true;
+                                
+                                // Move the object to a processor
+                                const processors = modules.filter(m => m.type === 'processor');
+                                if (processors.length > 0) {
+                                    const randomProcessor = processors[Math.floor(Math.random() * processors.length)];
+                                    robot.target.row = randomProcessor.row;
+                                    robot.target.col = randomProcessor.col;
+                                    robot.target.offsetX = Math.random() * 60 + 20;
+                                    robot.target.offsetY = Math.random() * 60 + 20;
+                                    
+                                    // Update stats
+                                    stats.objectsProcessed++;
+                                }
+                                
+                                robot.target = null;
+                            }
+                        } else {
+                            // Move toward the object
+                            const moveSpeed = 5;
+                            const moveX = (dx / distance) * moveSpeed;
+                            const moveY = (dy / distance) * moveSpeed;
+                            robot.offsetX += moveX;
+                            robot.offsetY += moveY;
+                        }
+                    } else {
+                        // Robot is in different cell, need to move to target cell
+                        const dx = robot.target.col - robot.col;
+                        const dy = robot.target.row - robot.row;
+                        
+                        if (Math.abs(dx) > Math.abs(dy)) {
+                            // Move horizontally first
+                            if (dx > 0) {
+                                robot.offsetX += 5;
+                                if (robot.offsetX > 90) {
+                                    robot.col++;
+                                    robot.offsetX = 10;
+                                }
+                            } else {
+                                robot.offsetX -= 5;
+                                if (robot.offsetX < 10) {
+                                    robot.col--;
+                                    robot.offsetX = 90;
+                                }
+                            }
+                        } else {
+                            // Move vertically first
+                            if (dy > 0) {
+                                robot.offsetY += 5;
+                                if (robot.offsetY > 90) {
+                                    robot.row++;
+                                    robot.offsetY = 10;
+                                }
+                            } else {
+                                robot.offsetY -= 5;
+                                if (robot.offsetY < 10) {
+                                    robot.row--;
+                                    robot.offsetY = 90;
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    // Check if robot is on a conveyor belt
+                    const conveyor = modules.find(m => 
+                        m.type === 'conveyor' && m.row === robot.row && m.col === robot.col
+                    );
+                    
+                    if (conveyor && conveyor.direction) {
+                        const directionSpeed = 2; // Speed of movement on conveyor
+                        
+                        switch (conveyor.direction) {
+                            case 'north':
+                                robot.offsetY -= directionSpeed;
+                                if (robot.offsetY < 10) {
+                                    // Move to next cell if possible
+                                    const nextPos = getNextPosition(robot.row, robot.col, conveyor.direction);
+                                    if (isValidPosition(nextPos.row, nextPos.col)) {
+                                        robot.row = nextPos.row;
+                                        robot.offsetY = 90;
+                                    } else {
+                                        robot.offsetY = 10; // Stop at edge
+                                    }
+                                }
+                                break;
+                            case 'east':
+                                robot.offsetX += directionSpeed;
+                                if (robot.offsetX > 90) {
+                                    // Move to next cell if possible
+                                    const nextPos = getNextPosition(robot.row, robot.col, conveyor.direction);
+                                    if (isValidPosition(nextPos.row, nextPos.col)) {
+                                        robot.col = nextPos.col;
+                                        robot.offsetX = 10;
+                                    } else {
+                                        robot.offsetX = 90; // Stop at edge
+                                    }
+                                }
+                                break;
+                            case 'south':
+                                robot.offsetY += directionSpeed;
+                                if (robot.offsetY > 90) {
+                                    // Move to next cell if possible
+                                    const nextPos = getNextPosition(robot.row, robot.col, conveyor.direction);
+                                    if (isValidPosition(nextPos.row, nextPos.col)) {
+                                        robot.row = nextPos.row;
+                                        robot.offsetY = 10;
+                                    } else {
+                                        robot.offsetY = 90; // Stop at edge
+                                    }
+                                }
+                                break;
+                            case 'west':
+                                robot.offsetX -= directionSpeed;
+                                if (robot.offsetX < 10) {
+                                    // Move to next cell if possible
+                                    const nextPos = getNextPosition(robot.row, robot.col, conveyor.direction);
+                                    if (isValidPosition(nextPos.row, nextPos.col)) {
+                                        robot.col = nextPos.col;
+                                        robot.offsetX = 90;
+                                    } else {
+                                        robot.offsetX = 10; // Stop at edge
+                                    }
+                                }
+                                break;
+                        }
+                    } else {
+                        // Wander randomly if not on conveyor
+                        const randomMove = Math.floor(Math.random() * 4);
+                        
+                        switch (randomMove) {
+                            case 0: // Up
+                                robot.offsetY -= 2;
+                                if (robot.offsetY < 10 && robot.row > 0) {
+                                    robot.row--;
+                                    robot.offsetY = 90;
+                                } else if (robot.offsetY < 10) {
+                                    robot.offsetY = 10;
+                                }
+                                break;
+                            case 1: // Right
+                                robot.offsetX += 2;
+                                if (robot.offsetX > 90 && robot.col < config.gridSize - 1) {
+                                    robot.col++;
+                                    robot.offsetX = 10;
+                                } else if (robot.offsetX > 90) {
+                                    robot.offsetX = 90;
+                                }
+                                break;
+                            case 2: // Down
+                                robot.offsetY += 2;
+                                if (robot.offsetY > 90 && robot.row < config.gridSize - 1) {
+                                    robot.row++;
+                                    robot.offsetY = 10;
+                                } else if (robot.offsetY > 90) {
+                                    robot.offsetY = 90;
+                                }
+                                break;
+                            case 3: // Left
+                                robot.offsetX -= 2;
+                                if (robot.offsetX < 10 && robot.col > 0) {
+                                    robot.col--;
+                                    robot.offsetX = 90;
+                                } else if (robot.offsetX < 10) {
+                                    robot.offsetX = 10;
+                                }
+                                break;
+                        }
+                    }
+                }
+            });
+            
+            // Calculate efficiency
+            if (modules.length > 0) {
+                const processingModules = modules.filter(m => m.type === 'processor');
+                const efficiencySum = processingModules.reduce((sum, m) => sum + m.efficiency, 0);
+                stats.efficiency = processingModules.length > 0 ? efficiencySum / processingModules.length : 0;
+                
+                // Adjust efficiency based on robot to module ratio
+                const optimalRobotRatio = 1.5; // 1.5 robots per module is optimal
+                const actualRatio = robots.length / modules.length;
+                const ratioFactor = 1 - Math.abs(actualRatio - optimalRobotRatio) / optimalRobotRatio;
+                stats.efficiency *= Math.max(0.5, ratioFactor);
