@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conveyor Belt Simulator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+        
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: #f8f8f8;
+            border-radius: 6px;
+        }
+        
+        .control-group {
+            flex: 1;
+            min-width: 200px;
+        }
+        
+        .control-group h3 {
+            margin-top: 0;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 5px;
+        }
+        
+        button {
+            padding: 6px 12px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px 0;
+        }
+        
+        button:hover {
+            background-color: #45a049;
+        }
+        
+        button.selected {
+            background-color: #2196F3;
+        }
+        
+        .simulator {
+            position: relative;
+            width: 100%;
+            height: 500px;
+            background-color: #e8e8e8;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(10, 1fr);
+            grid-template-rows: repeat(10, 1fr);
+            width: 100%;
+            height: 100%;
+            gap: 2px;
+        }
+        
+        .cell {
+            background-color: #f8f8f8;
+            border: 1px solid #ddd;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            position: relative;
+        }
+        
+        .cell:hover {
+            background-color: #e6e6e6;
+        }
+        
+        .cell-empty {
+            background-color: #f8f8f8;
+        }
+        
+        .conveyor {
+            background-color: #aaa;
+        }
+        
+        .conveyor-right::after {
+            content: "→";
+            color: white;
+            font-weight: bold;
+            font-size: 18px;
+        }
+        
+        .conveyor-left::after {
+            content: "←";
+            color: white;
+            font-weight: bold;
+            font-size: 18px;
+        }
+        
+        .conveyor-up::after {
+            content: "↑";
+            color: white;
+            font-weight: bold;
+            font-size: 18px;
+        }
+        
+        .conveyor-down::after {
+            content: "↓";
+            color: white;
+            font-weight: bold;
+            font-size: 18px;
+        }
+        
+        .input-point {
+            background-color: #2196F3;
+            color: white;
+            font-weight: bold;
+        }
+        
+        .output-point {
+            background-color: #FF5722;
+            color: white;
+            font-weight: bold;
+        }
+        
+        .pocket {
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            background-color: #ff9800;
+            border-radius: 50%;
+            z-index: 10;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            transition: all 0.4s ease-in-out;
+        }
+        
+        .stats {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f8f8f8;
+            border-radius: 6px;
+        }
+        
+        .stats-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+        
+        .stat-item {
+            flex: 1;
+            text-align: center;
+            padding: 10px;
+            background-color: white;
+            border-radius: 4px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            margin: 0 5px;
+        }
+        
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .legend {
+            margin-top: 15px;
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 3px;
+        }
+        
+        .color-conveyor { background-color: #aaa; }
+        .color-input { background-color: #2196F3; }
+        .color-output { background-color: #FF5722; }
+        .color-pocket { background-color: #ff9800; border-radius: 50%; }
+        
+        .status-message {
+            padding: 5px 10px;
+            background-color: #f1f1f1;
+            border-radius: 4px;
+            margin-top: 10px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Conveyor Belt Simulator</h1>
+        
+        <div class="controls">
+            <div class="control-group">
+                <h3>Simulation Controls</h3>
+                <button id="btnStart">Start Simulation</button>
+                <button id="btnStop">Stop Simulation</button>
+                <button id="btnReset">Reset Simulation</button>
+                <div>
+                    <label for="speedRange">Speed:</label>
+                    <input type="range" id="speedRange" min="1" max="10" value="5">
+                    <span id="speedValue">5</span>
+                </div>
+                <div class="status-message" id="statusMessage"></div>
+            </div>
+            
+            <div class="control-group">
+                <h3>Placement Controls</h3>
+                <button id="btnConveyorRight">Add Conveyor (→)</button>
+                <button id="btnConveyorLeft">Add Conveyor (←)</button>
+                <button id="btnConveyorUp">Add Conveyor (↑)</button>
+                <button id="btnConveyorDown">Add Conveyor (↓)</button>
+                <button id="btnInput">Add Input Point</button>
+                <button id="btnOutput">Add Output Point</button>
+                <button id="btnRemove">Remove Cell</button>
+            </div>
+        </div>
+        
+        <div class="simulator" id="simulator">
+            <div class="grid" id="grid"></div>
+        </div>
+        
+        <div class="stats">
+            <h3>Statistics</h3>
+            <div class="stats-row">
+                <div class="stat-item">
+                    <div>Pockets Generated</div>
+                    <div class="stat-value" id="statGenerated">0</div>
+                </div>
+                <div class="stat-item">
+                    <div>Pockets Delivered</div>
+                    <div class="stat-value" id="statDelivered">0</div>
+                </div>
+                <div class="stat-item">
+                    <div>Delivery Rate</div>
+                    <div class="stat-value" id="statRate">0%</div>
+                </div>
+                <div class="stat-item">
+                    <div>Average Time (s)</div>
+                    <div class="stat-value" id="statTime">0.0</div>
+                </div>
+            </div>
+            
+            <div class="legend">
+                <div class="legend-item">
+                    <div class="legend-color color-conveyor"></div>
+                    <span>Conveyor</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color color-input"></div>
+                    <span>Input Point</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color color-output"></div>
+                    <span>Output Point</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color color-pocket"></div>
+                    <span>Pocket</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Constants
+            const GRID_SIZE = 10;
+            const CELL_TYPES = {
+                EMPTY: 'empty',
+                CONVEYOR: 'conveyor',
+                INPUT: 'input',
+                OUTPUT: 'output'
+            };
+            
+            // DOM Elements
+            const grid = document.getElementById('grid');
+            const simulator = document.getElementById('simulator');
+            const statusMessage = document.getElementById('statusMessage');
+            const statGenerated = document.getElementById('statGenerated');
+            const statDelivered = document.getElementById('statDelivered');
+            const statRate = document.getElementById('statRate');
+            const statTime = document.getElementById('statTime');
+            const speedRange = document.getElementById('speedRange');
+            const speedValue = document.getElementById('speedValue');
+            
+            // Buttons
+            const btnConveyorRight = document.getElementById('btnConveyorRight');
+            const btnConveyorLeft = document.getElementById('btnConveyorLeft');
+            const btnConveyorUp = document.getElementById('btnConveyorUp');
+            const btnConveyorDown = document.getElementById('btnConveyorDown');
+            const btnInput = document.getElementById('btnInput');
+            const btnOutput = document.getElementById('btnOutput');
+            const btnRemove = document.getElementById('btnRemove');
+            const btnStart = document.getElementById('btnStart');
+            const btnStop = document.getElementById('btnStop');
+            const btnReset = document.getElementById('btnReset');
+            
+            // State
+            let selectedTool = null;
+            let gridCells = [];
+            let pockets = [];
+            let stats = {
+                generated: 0,
+                delivered: 0,
+                times: []
+            };
+            let simulation = {
+                running: false,
+                speed: 5,
+                inputIntervalId: null,
+                movementIntervalId: null
+            };
+            
+            // Tool buttons
+            const toolButtons = [btnConveyorRight, btnConveyorLeft, btnConveyorUp, btnConveyorDown, btnInput, btnOutput, btnRemove];
+            
+            // Initialize grid
+            function initializeGrid() {
+                grid.innerHTML = '';
+                gridCells = [];
+                
+                for (let row = 0; row < GRID_SIZE; row++) {
+                    gridCells[row] = [];
+                    for (let col = 0; col < GRID_SIZE; col++) {
+                        const cell = document.createElement('div');
+                        cell.className = 'cell cell-empty';
+                        cell.dataset.row = row;
+                        cell.dataset.col = col;
+                        
+                        cell.addEventListener('click', () => handleCellClick(row, col));
+                        
+                        grid.appendChild(cell);
+                        
+                        gridCells[row][col] = {
+                            element: cell,
+                            type: CELL_TYPES.EMPTY,
+                            direction: null
+                        };
+                    }
+                }
+            }
+            
+            // Handle tool selection
+            function selectTool(tool) {
+                selectedTool = tool;
+                toolButtons.forEach(btn => btn.classList.remove('selected'));
+                
+                switch(tool) {
+                    case 'conveyor-right':
+                        btnConveyorRight.classList.add('selected');
+                        break;
+                    case 'conveyor-left':
+                        btnConveyorLeft.classList.add('selected');
+                        break;
+                    case 'conveyor-up':
+                        btnConveyorUp.classList.add('selected');
+                        break;
+                    case 'conveyor-down':
+                        btnConveyorDown.classList.add('selected');
+                        break;
+                    case 'input':
+                        btnInput.classList.add('selected');
+                        break;
+                    case 'output':
+                        btnOutput.classList.add('selected');
+                        break;
+                    case 'remove':
+                        btnRemove.classList.add('selected');
+                        break;
+                }
+            }
+            
+            // Handle cell click
+            function handleCellClick(row, col) {
+                if (!selectedTool) {
+                    showStatus('Please select a tool first');
+                    return;
+                }
+                
+                const cell = gridCells[row][col];
+                
+                // Reset cell
+                cell.element.className = 'cell';
+                cell.element.textContent = '';
+                
+                if (selectedTool === 'remove') {
+                    cell.type = CELL_TYPES.EMPTY;
+                    cell.direction = null;
+                    cell.element.className = 'cell cell-empty';
+                } 
+                else if (selectedTool.startsWith('conveyor-')) {
+                    const direction = selectedTool.split('-')[1];
+                    cell.type = CELL_TYPES.CONVEYOR;
+                    cell.direction = direction;
+                    cell.element.className = `cell conveyor conveyor-${direction}`;
+                } 
+                else if (selectedTool === 'input') {
+                    cell.type = CELL_TYPES.INPUT;
+                    cell.element.className = 'cell input-point';
+                    cell.element.textContent = 'IN';
+                } 
+                else if (selectedTool === 'output') {
+                    cell.type = CELL_TYPES.OUTPUT;
+                    cell.element.className = 'cell output-point';
+                    cell.element.textContent = 'OUT';
+                }
+            }
+            
+            // Position helper - calculate cell center position
+            function getCellCenterPosition(row, col) {
+                const simulatorRect = simulator.getBoundingClientRect();
+                const cellRect = gridCells[row][col].element.getBoundingClientRect();
+                
+                return {
+                    left: cellRect.left - simulatorRect.left + (cellRect.width - 16) / 2,
+                    top: cellRect.top - simulatorRect.top + (cellRect.height - 16) / 2
+                };
+            }
+            
+            // Create pocket at location
+            function createPocket(row, col) {
+                const pocket = document.createElement('div');
+                pocket.className = 'pocket';
+                simulator.appendChild(pocket);
+                
+                const position = getCellCenterPosition(row, col);
+                
+                pocket.style.left = `${position.left}px`;
+                pocket.style.top = `${position.top}px`;
+                
+                const pocketObj = {
+                    element: pocket,
+                    row: row,
+                    col: col,
+                    createdAt: Date.now()
+                };
+                
+                pockets.push(pocketObj);
+                stats.generated++;
+                updateStats();
+                
+                return pocketObj;
+            }
+            
+            // Move pockets
+            function movePockets() {
+                const pocketsToRemove = [];
+                
+                // First, update positions of all pockets
+                for (let i = 0; i < pockets.length; i++) {
+                    const pocket = pockets[i];
+                    const cell = gridCells[pocket.row][pocket.col];
+                    
+                    // Check if in output cell
+                    if (cell.type === CELL_TYPES.OUTPUT) {
+                        pocketsToRemove.push(i);
+                        stats.delivered++;
+                        stats.times.push((Date.now() - pocket.createdAt) / 1000);
+                        continue;
+                    }
+                    
+                    // Move based on conveyor
+                    if (cell.type === CELL_TYPES.CONVEYOR) {
+                        let newRow = pocket.row;
+                        let newCol = pocket.col;
+                        
+                        switch (cell.direction) {
+                            case 'right':
+                                newCol = Math.min(GRID_SIZE - 1, newCol + 1);
+                                break;
+                            case 'left':
+                                newCol = Math.max(0, newCol - 1);
+                                break;
+                            case 'up':
+                                newRow = Math.max(0, newRow - 1);
+                                break;
+                            case 'down':
+                                newRow = Math.min(GRID_SIZE - 1, newRow + 1);
+                                break;
+                        }
+                        
+                        // If position has changed, update pocket position
+                        if (newRow !== pocket.row || newCol !== pocket.col) {
+                            const position = getCellCenterPosition(newRow, newCol);
+                            
+                            pocket.element.style.left = `${position.left}px`;
+                            pocket.element.style.top = `${position.top}px`;
+                            
+                            pocket.row = newRow;
+                            pocket.col = newCol;
+                        }
+                    }
+                    
+                    // Check if pocket has been moving for too long (30 seconds)
+                    if ((Date.now() - pocket.createdAt) > 30000) {
+                        pocketsToRemove.push(i);
+                    }
+                }
+                
+                // Remove pockets that reached outputs or timed out
+                pocketsToRemove.sort((a, b) => b - a).forEach(index => {
+                    pockets[index].element.remove();
+                    pockets.splice(index, 1);
+                });
+                
+                updateStats();
+            }
+            
+            // Start simulation
+            function startSimulation() {
+                if (simulation.running) return;
+                
+                // Find input points
+                const inputPoints = [];
+                for (let row = 0; row < GRID_SIZE; row++) {
+                    for (let col = 0; col < GRID_SIZE; col++) {
+                        if (gridCells[row][col].type === CELL_TYPES.INPUT) {
+                            inputPoints.push({ row, col });
+                        }
+                    }
+                }
+                
+                if (inputPoints.length === 0) {
+                    showStatus('Please add at least one input point');
+                    return;
+                }
+                
+                const outputPoints = [];
+                for (let row = 0; row < GRID_SIZE; row++) {
+                    for (let col = 0; col < GRID_SIZE; col++) {
+                        if (gridCells[row][col].type === CELL_TYPES.OUTPUT) {
+                            outputPoints.push({ row, col });
+                        }
+                    }
+                }
+                
+                if (outputPoints.length === 0) {
+                    showStatus('Please add at least one output point');
+                    return;
+                }
+                
+                simulation.running = true;
+                showStatus('Simulation running');
+                
+                // Generate pockets at regular intervals
+                const generationInterval = 2000 / simulation.speed;
+                simulation.inputIntervalId = setInterval(() => {
+                    const randomInputPoint = inputPoints[Math.floor(Math.random() * inputPoints.length)];
+                    createPocket(randomInputPoint.row, randomInputPoint.col);
+                }, generationInterval);
+                
+                // Move pockets more frequently for smooth animation
+                const movementInterval = 500 / simulation.speed;
+                simulation.movementIntervalId = setInterval(movePockets, movementInterval);
+            }
+            
+            // Stop simulation
+            function stopSimulation() {
+                if (!simulation.running) return;
+                
+                clearInterval(simulation.inputIntervalId);
+                clearInterval(simulation.movementIntervalId);
+                simulation.running = false;
+                showStatus('Simulation stopped');
+            }
+            
+            // Reset simulation
+            function resetSimulation() {
+                stopSimulation();
+                
+                // Remove all pockets
+                pockets.forEach(pocket => pocket.element.remove());
+                pockets = [];
+                
+                // Reset stats
+                stats = {
+                    generated: 0,
+                    delivered: 0,
+                    times: []
+                };
+                
+                updateStats();
+                showStatus('Simulation reset');
+            }
+            
+            // Update statistics display
+            function updateStats() {
+                statGenerated.textContent = stats.generated;
+                statDelivered.textContent = stats.delivered;
+                
+                // Calculate delivery rate
+                const rate = stats.generated > 0 ? Math.round((stats.delivered / stats.generated) * 100) : 0;
+                statRate.textContent = `${rate}%`;
+                
+                // Calculate average time
+                const avgTime = stats.times.length > 0 
+                    ? (stats.times.reduce((sum, time) => sum + time, 0) / stats.times.length).toFixed(1) 
+                    : '0.0';
+                statTime.textContent = avgTime;
+            }
+            
+            // Show status message
+            function showStatus(message) {
+                statusMessage.textContent = message;
+                setTimeout(() => {
+                    statusMessage.textContent = '';
+                }, 3000);
+            }
+            
+            // Initialize event listeners
+            function initEventListeners() {
+                btnConveyorRight.addEventListener('click', () => selectTool('conveyor-right'));
+                btnConveyorLeft.addEventListener('click', () => selectTool('conveyor-left'));
+                btnConveyorUp.addEventListener('click', () => selectTool('conveyor-up'));
+                btnConveyorDown.addEventListener('click', () => selectTool('conveyor-down'));
+                btnInput.addEventListener('click', () => selectTool('input'));
+                btnOutput.addEventListener('click', () => selectTool('output'));
+                btnRemove.addEventListener('click', () => selectTool('remove'));
+                
+                btnStart.addEventListener('click', startSimulation);
+                btnStop.addEventListener('click', stopSimulation);
+                btnReset.addEventListener('click', resetSimulation);
+                
+                speedRange.addEventListener('input', function() {
+                    simulation.speed = parseInt(this.value);
+                    speedValue.textContent = this.value;
+                    
+                    if (simulation.running) {
+                        stopSimulation();
+                        startSimulation();
+                    }
+                });
+                
+                // Window resize handler to reposition pockets
+                window.addEventListener('resize', function() {
+                    if (pockets.length > 0) {
+                        pockets.forEach(pocket => {
+                            const position = getCellCenterPosition(pocket.row, pocket.col);
+                            pocket.element.style.left = `${position.left}px`;
+                            pocket.element.style.top = `${position.top}px`;
+                        });
+                    }
+                });
+            }
+            
+            // Initialize application
+            function init() {
+                initializeGrid();
+                initEventListeners();
+                showStatus('Select a tool and start building your conveyor system');
+            }
+            
+            // Start the app
+            init();
+        });
+    </script>
+</body>
+</html>
